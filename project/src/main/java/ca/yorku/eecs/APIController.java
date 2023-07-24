@@ -144,11 +144,6 @@ public class APIController implements HttpHandler {
 		String movieId = queryParam.get("movieId");
 
 		if (actorId == null || movieId == null) {
-			// TODO: Don't evaluate with movieID, actorId. Check if the either is in the
-			// database instead by using previous methods implemented in other todo
-			// statements
-			// If there is no relationship in the database that exists with that movieId and
-			// actorId
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
@@ -172,7 +167,6 @@ public class APIController implements HttpHandler {
 		String actorId = queryParam.get("actorId");
 
 		if (actorId == null) {
-			// TODO: Don't evaluate with actorID. Use getActor todo implemented method
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
