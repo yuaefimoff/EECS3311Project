@@ -156,7 +156,7 @@ public class APIController implements HttpHandler {
 			return;
 		} else {
 			// Get relationship from DB, send 200 request for successful retrieval.
-			String result = dbm.hasRelationship(actorId.trim(), movieId.trim());
+			String result = dbm.convertRelationshipToJSON(actorId.trim(), movieId.trim());
 			uti.sendResponse(request, result, 200);
 		}
 	}
