@@ -56,6 +56,9 @@ public class APIController implements HttpHandler {
 			hasRelationship(request);
 		} else if (selectedMethod.equals("computeBaconNumber")) {
 			computeBaconNumber(request);
+		} else if (selectedMethod.equals("computeBaconPath")) {
+			computeBaconPath(request);
+			
 		}
 
 	}
@@ -180,6 +183,28 @@ public class APIController implements HttpHandler {
 
 	}
 
+	private void computeBaconPath(HttpExchange request) throws IOException {
+		URI uri = request.getRequestURI();
+		String query = uri.getQuery();
+
+		if (query == null) {
+			// If the request body is improperly formatted or missing required information
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+
+		Map<String, String> queryParam = uti.splitQuery(query);
+		String actorId = queryParam.get("actorId");
+
+		if (actorId == null) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		} else {
+			// Get bacon number from DB, send 200 request for successful computation.
+			String result = dbm.convertBaconPathToJson(actorId);
+			uti.sendResponse(request, result, 200);
+		}
+	}
 	// PUT Requests
 	// -------------------------------------------------------------------
 	private void addActor(HttpExchange request) throws IOException {
