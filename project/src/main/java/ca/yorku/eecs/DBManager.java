@@ -36,7 +36,7 @@ public class DBManager implements AutoCloseable {
 		try (Session session = driver.session()) {
 
 			if (hasDuplicate(prop2Label, prop2Value)) {
-				//Check if actorID is duplicate
+				// Check if actorID is duplicate
 				return false;
 			}
 
@@ -75,9 +75,9 @@ public class DBManager implements AutoCloseable {
 			// Create and send Cypher request to DB
 			String query = "MATCH (n) WHERE n." + label + " = '" + value + "' RETURN count(n) > 0 AS hasDuplicate";
 			StatementResult result = session.run(query);
-			
+
 			if (result.hasNext()) {
-				//Check if found record is a duplicate
+				// Check if found record is a duplicate
 				Record record = result.next();
 				return record.get("hasDuplicate").asBoolean();
 			}
@@ -189,7 +189,7 @@ public class DBManager implements AutoCloseable {
 		return "{\"movieId\":\"" + movieIdString + "\",\"name\":\"" + nameString + "\",\"actors\":" + actors + "}";
 	}
 
-	public String convertRelationshipToJSON(String actorId, String movieId) {
+	public String convertRelationshipToJson(String actorId, String movieId) {
 		// Used in APIController hasRelationship method
 		StatementResult actor = searchByLabelAndId("actor", actorId);
 		String nameString = null;
@@ -222,18 +222,30 @@ public class DBManager implements AutoCloseable {
 
 	// NEW ADDED BY ME
 	// ---------------------------------------------------------------------
-	public String calculateBaconNumber(String actorId) {
+	public String convertBaconNumberToJson(String actorId) {
+		StatementResult actor = searchByLabelAndId("actor", actorId);
+		String actorIdString = null;
 		int baconNumber = 0;
-		if (actorId != "nm0000102") {
+
+		while (actor.hasNext()) {
+			// Retrieve actor record, extract ID
+			Record record = actor.next();
+			actorIdString = record.get("n").asMap().get("actorId").toString();
+		}
+
+		if (!actorIdString.equals("nm0000102")) {
+			// If actor is not Kevin Bacon, proceed to find shortest path to Kevin Bacon
 			try (Session session = driver.session()) {
+				//Send Cypher query, get path length, and store it
+				//Note, we divide path length by 2 to remove the movies from the path)
 				String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '"
-						+ actorId + "'}))\n" + "RETURN LENGTH(p)/2 AS bacon_number";
+						+ actorIdString + "'}))\n" + "RETURN LENGTH(p)/2 AS bacon_number";
 
 				StatementResult result = session.run(query);
 				baconNumber = result.single().get("bacon_number").asInt();
-
 			}
 		}
+		
 		return "{\"baconNumber\":" + baconNumber + "}";
 	}
 
