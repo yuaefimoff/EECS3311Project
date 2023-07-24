@@ -156,7 +156,7 @@ public class APIController implements HttpHandler {
 			return;
 		} else {
 			// Get relationship from DB, send 200 request for successful retrieval.
-			String result = dbm.convertRelationshipToJSON(actorId.trim(), movieId.trim());
+			String result = dbm.convertRelationshipToJson(actorId.trim(), movieId.trim());
 			uti.sendResponse(request, result, 200);
 		}
 	}
@@ -180,7 +180,7 @@ public class APIController implements HttpHandler {
 			return;
 		} else {
 			// Get bacon number from DB, send 200 request for successful computation.
-			String result = dbm.calculateBaconNumber(actorId);
+			String result = dbm.convertBaconNumberToJson(actorId);
 			uti.sendResponse(request, result, 200);
 		}
 
