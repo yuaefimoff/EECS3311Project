@@ -36,7 +36,7 @@ public class DBManager implements AutoCloseable {
 		try (Session session = driver.session()) {
 
 			if (hasDuplicate(prop2Label, prop2Value)) {
-				// TODO: This should only check for duplicate Id rather than both name and Id
+				//Check if actorID is duplicate
 				return false;
 			}
 
@@ -70,12 +70,14 @@ public class DBManager implements AutoCloseable {
 	// Duplicate Checkers
 	// ---------------------------------------------------------------------
 	public Boolean hasDuplicate(String label, String value) {
+		// Used in createNodeWith2Props
 		try (Session session = driver.session()) {
+			// Create and send Cypher request to DB
 			String query = "MATCH (n) WHERE n." + label + " = '" + value + "' RETURN count(n) > 0 AS hasDuplicate";
-
 			StatementResult result = session.run(query);
-
+			
 			if (result.hasNext()) {
+				//Check if found record is a duplicate
 				Record record = result.next();
 				return record.get("hasDuplicate").asBoolean();
 			}
@@ -85,6 +87,7 @@ public class DBManager implements AutoCloseable {
 	}
 
 	public Boolean hasDuplicateRelationship(String actorId, String movieId) {
+		// Used in createRelationship
 		try (Session session = driver.session()) {
 			String query = "MATCH (a:actor)-[r:ACTED_IN]->(m:movie) " + "WHERE a.actorId = '" + actorId
 					+ "' AND m.movieId = '" + movieId + "' " + "RETURN count(r) > 0 AS hasDuplicate";
@@ -100,18 +103,25 @@ public class DBManager implements AutoCloseable {
 		}
 	}
 
+	// Search for Node or Relationship
+	// ---------------------------------------------------------------------
 	public List<String> findRelationship(String label, String name) {
+		// Used in convertActorToJson, convertMovieToJson, and convertRelationshipToJSON
 		try (Session session = driver.session()) {
 			String query = null;
 
+			// Choose which Cypher query based on node type (movie or actor)
 			if (label.equals("movie")) {
 				query = "MATCH (n)-[r]->(m) WHERE n.name = $name RETURN n,r,m";
 			} else if (label.equals("actor")) {
 				query = "MATCH (n)-[r]->(m) WHERE m.name = $name RETURN n,r,m";
 			}
+			// Send Cypher query to DB
 			String finalQuery = query;
 			StatementResult result = session
 					.writeTransaction(tx -> tx.run(finalQuery, Values.parameters("name", name)));
+
+			// Add associated nodes to results list
 			List<String> results = new LinkedList<>();
 			while (result.hasNext()) {
 				Record record = result.next();
@@ -126,12 +136,14 @@ public class DBManager implements AutoCloseable {
 
 	}
 
-	public StatementResult searchByLabelAndId(String label, String actorId) {
+	public StatementResult searchByLabelAndId(String label, String nodeId) {
+		// Used in convertActorToJson, convertMovieToJson, and convertRelationshipToJSON
 		try (Session session = driver.session()) {
 			Map<String, Object> params = new HashMap<>();
-			params.put(label + "Id", actorId);
+			params.put(label + "Id", nodeId);
 			params.put("label", label);
 
+			// Create and send Cypher query to DB
 			String query = "MATCH (n:" + label + ") WHERE n." + label + "Id = $" + label + "Id RETURN n";
 			StatementResult result = session.writeTransaction(tx -> tx.run(query, params));
 			return result;
@@ -202,8 +214,8 @@ public class DBManager implements AutoCloseable {
 				break;
 			}
 		}
-		
-		//Return as JSON
+
+		// Return as JSON
 		return "{\"actorId\":\"" + actorId + "\",\"movieId\":\"" + movieId + "\",\"hasRelationship\":" + hasRelationship
 				+ "}";
 	}
