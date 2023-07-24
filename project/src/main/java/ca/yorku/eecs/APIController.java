@@ -189,17 +189,17 @@ public class APIController implements HttpHandler {
 	// PUT Requests
 	// -------------------------------------------------------------------
 	private void addActor(HttpExchange request) throws IOException {
-		//Extract and convert request
+		// Extract and convert request
 		String json = uti.getBody(request);
 		String name = uti.findJsonProperty(json, "name");
 		String actorId = uti.findJsonProperty(json, "actorId");
-		
+
 		if (name == null || actorId == null) {
 			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
-		
+
 		// Create actor node, with name and actorId
 		Boolean addResult = dbm.createNodeWith2Props("actor", "name", name, "actorId", actorId);
 
@@ -207,25 +207,25 @@ public class APIController implements HttpHandler {
 			// Successful add
 			uti.sendString(request, "OK\n", 200);
 		} else {
-			// If save or add was unsuccessful
-			uti.sendString(request, "INTERNAL SERVER ERROR\n", 500);
+			// Duplicate node found
+			uti.sendString(request, "BAD REQUEST\n", 400);
 		}
 		return;
 
 	}
 
 	private void addMovie(HttpExchange request) throws IOException {
-		//Extract and convert request
+		// Extract and convert request
 		String json = uti.getBody(request);
 		String name = uti.findJsonProperty(json, "name");
 		String actorId = uti.findJsonProperty(json, "movieId");
-		
+
 		if (name == null || actorId == null) {
 			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
-		
+
 		// Create movie node, with name and movieId
 		Boolean addResult = dbm.createNodeWith2Props("movie", "name", name, "movieId", actorId);
 
@@ -233,25 +233,25 @@ public class APIController implements HttpHandler {
 			// Successful add
 			uti.sendString(request, "OK\n", 200);
 		} else {
-			// If save or add was unsuccessful
-			uti.sendString(request, "INTERNAL SERVER ERROR\n", 500);
+			// Duplicate node found
+			uti.sendString(request, "BAD REQUEST\n", 400);
 		}
 		return;
 
 	}
 
 	private void addRelationship(HttpExchange request) throws IOException {
-		//Extract and convert request
+		// Extract and convert request
 		String json = uti.getBody(request);
 		String actorId = uti.findJsonProperty(json, "actorId");
 		String movieId = uti.findJsonProperty(json, "movieId");
-		
+
 		if (movieId == null || actorId == null) {
 			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
-		
+
 		// Create relationship arrow, with actorId and movieId
 		Boolean addResult = dbm.createRelationship(actorId, movieId);
 
@@ -259,8 +259,8 @@ public class APIController implements HttpHandler {
 			// Successful add
 			uti.sendString(request, "OK\n", 200);
 		} else {
-			// If save or add was unsuccessful
-			uti.sendString(request, "INTERNAL SERVER ERROR\n", 500);
+			// Duplicate relationship found
+			uti.sendString(request, "BAD REQUEST\n", 400);
 		}
 		return;
 
