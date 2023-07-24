@@ -3,6 +3,7 @@ package ca.yorku.eecs;
 import org.neo4j.driver.v1.*;
 import org.neo4j.driver.v1.Record;
 
+import java.util.ArrayList;//Newly added import
 import java.util.HashMap;
 import java.util.HashSet;//Newly added import
 import java.util.LinkedList;
@@ -220,7 +221,7 @@ public class DBManager implements AutoCloseable {
 				+ "}";
 	}
 
-	// NEW ADDED BY ME
+	// Bacon Number Methods
 	// ---------------------------------------------------------------------
 	public String convertBaconNumberToJson(String actorId) {
 		StatementResult actor = searchByLabelAndId("actor", actorId);
@@ -236,8 +237,8 @@ public class DBManager implements AutoCloseable {
 		if (!actorIdString.equals("nm0000102")) {
 			// If actor is not Kevin Bacon, proceed to find shortest path to Kevin Bacon
 			try (Session session = driver.session()) {
-				//Send Cypher query, get path length, and store it
-				//Note, we divide path length by 2 to remove the movies from the path)
+				// Send Cypher query, get path length, and store it
+				// Note, we divide path length by 2 to remove the movies from the path)
 				String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '"
 						+ actorIdString + "'}))\n" + "RETURN LENGTH(p)/2 AS bacon_number";
 
@@ -245,8 +246,36 @@ public class DBManager implements AutoCloseable {
 				baconNumber = result.single().get("bacon_number").asInt();
 			}
 		}
-		
+
 		return "{\"baconNumber\":" + baconNumber + "}";
+	}
+
+	//TODO: Check if this method is properly implemented
+	public String convertBaconPathToJson(String actorId) {
+		StatementResult actor = searchByLabelAndId("actor", actorId);
+		String actorIdString = null;
+		List<Object> baconPath = new ArrayList<>();
+
+		while (actor.hasNext()) {
+			// Retrieve actor record, extract ID
+			Record record = actor.next();
+			actorIdString = record.get("n").asMap().get("actorId").toString();
+		}
+
+		// TODO: Check if we need to consider the case where Kevin Bacon is the ID, and add an if statement to reflect it
+		try (Session session = driver.session()) {
+			// Send Cypher query and get the path
+			String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '"
+					+ actorIdString + "'}))\n" + "RETURN p";
+
+			StatementResult result = session.run(query);
+			if (result.hasNext()) {
+				Record record = result.single();
+				baconPath = record.get("p").asList();
+			}
+		}
+
+		return "{\"baconPath\":" + baconPath.toString() + "}";
 	}
 
 }
