@@ -29,26 +29,23 @@ public class DBManager implements AutoCloseable {
 		driver.close();
 	}
 
-	// Rearranged methods so creation of nodes and relationships are grouped
-	// together
-
-	// Create of Nodes/ Relationships:
+	// CREATION of Nodes/ Relationships:
 	// ---------------------------------------------------------------------
 	public Boolean createNodeWith2Props(String label, String prop1Label, String prop1Value, String prop2Label,
 			String prop2Value) {
-		// We use this for actor/movie and their corresponding ID
-		// Boolean value let's APIController what kind of response to send to the client
 		try (Session session = driver.session()) {
+
 			if (hasDuplicate(prop2Label, prop2Value)) {
+				// TODO: This should only check for duplicate Id rather than both name and Id
 				return false;
 			}
 
+			// Create and send Cypher query to DB
 			String query = "CREATE (m:" + label + " {" + prop1Label + ": '" + prop1Value + "', " + prop2Label + ": '"
 					+ prop2Value + "'})";
-
 			session.writeTransaction(tx -> tx.run(query));
-			return true;
 
+			return true;
 		}
 
 	}
@@ -56,17 +53,21 @@ public class DBManager implements AutoCloseable {
 	public Boolean createRelationship(String actorId, String movieId) {
 		try (Session session = driver.session()) {
 			if (hasDuplicateRelationship(actorId, movieId)) {
+				// Check for duplicate relationship
 				return false;
 			}
+
+			// Create and send Cypher query to DB
 			String query = "MATCH (a:actor),(m:movie) " + "WHERE a.actorId = '" + actorId + "' AND m.movieId = '"
 					+ movieId + "' " + "CREATE (a)-[r:ACTED_IN]->(m) RETURN type(r)";
 
 			session.writeTransaction(tx -> tx.run(query));
+
 			return true;
 		}
 	}
 
-	// Helper Methods (Will group appropriately later)
+	// Duplicate Checkers
 	// ---------------------------------------------------------------------
 	public Boolean hasDuplicate(String label, String value) {
 		try (Session session = driver.session()) {
@@ -137,51 +138,63 @@ public class DBManager implements AutoCloseable {
 		}
 	}
 
+	// JSON Formatting
+	// ---------------------------------------------------------------------
 	public String convertActorToJson(String actorId) {
-		// Manually construct the JSON string
+		// Used in APIController getActor method
 		StatementResult actor = searchByLabelAndId("actor", actorId);
 		String actorIdString = null;
 		String nameString = null;
+
 		while (actor.hasNext()) {
+			// Retrieve actor record, extract name and ID
 			Record record = actor.next();
 			nameString = record.get("n").asMap().get("name").toString();
 			actorIdString = record.get("n").asMap().get("actorId").toString();
 		}
 
+		// Return list of movies in String format
 		String movies = findRelationship("movie", nameString).toString();
 
 		return "{\"actorId\":\"" + actorIdString + "\",\"name\":\"" + nameString + "\",\"movies\":" + movies + "}";
 	}
 
 	public String convertMovieToJson(String movieId) {
-		// Manually construct the JSON string
+		// Used in APIController getMovie method
 		StatementResult movie = searchByLabelAndId("movie", movieId);
 		String movieIdString = null;
 		String nameString = null;
+
 		while (movie.hasNext()) {
+			// Retrieve movie record, extract name and ID
 			Record record = movie.next();
 			nameString = record.get("n").asMap().get("name").toString();
 			movieIdString = record.get("n").asMap().get("movieId").toString();
 		}
 
+		// Return list of actors in String format
 		String actors = findRelationship("actor", nameString).toString();
-
 		return "{\"movieId\":\"" + movieIdString + "\",\"name\":\"" + nameString + "\",\"actors\":" + actors + "}";
 	}
 
-	public String hasRelationship(String actorId, String movieId) {
+	public String convertRelationshipToJSON(String actorId, String movieId) {
+		// Used in APIController hasRelationship method
 		StatementResult actor = searchByLabelAndId("actor", actorId);
 		String nameString = null;
+
 		while (actor.hasNext()) {
+			// Retrieve actor record, extract name
 			Record record = actor.next();
 			nameString = record.get("n").asMap().get("name").toString();
 		}
 
+		// Get list of movies in String format
 		String movies = findRelationship("movie", nameString).toString();
 		movies = movies.substring(1, movies.length() - 1); // Remove the square brackets
-		System.out.println(movies);
-		Boolean hasRelationship = false;
+		// System.out.println(movies);
 
+		// Iterate through each movieId and find if actor has a relationship with movie
+		Boolean hasRelationship = false;
 		for (String movie : movies.split(", ")) {
 			System.out.println(movie);
 			if (movie.equals("\"" + movieId + "\"")) {
@@ -189,22 +202,24 @@ public class DBManager implements AutoCloseable {
 				break;
 			}
 		}
-
+		
+		//Return as JSON
 		return "{\"actorId\":\"" + actorId + "\",\"movieId\":\"" + movieId + "\",\"hasRelationship\":" + hasRelationship
 				+ "}";
 	}
 
 	// NEW ADDED BY ME
+	// ---------------------------------------------------------------------
 	public String calculateBaconNumber(String actorId) {
 		int baconNumber = 0;
-		if(actorId != "nm0000102") {
+		if (actorId != "nm0000102") {
 			try (Session session = driver.session()) {
-				String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '" + actorId + "'}))\n"
-						+ "RETURN LENGTH(p)/2 AS bacon_number";
-				
+				String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '"
+						+ actorId + "'}))\n" + "RETURN LENGTH(p)/2 AS bacon_number";
+
 				StatementResult result = session.run(query);
-			    baconNumber = result.single().get("bacon_number").asInt();
-				
+				baconNumber = result.single().get("bacon_number").asInt();
+
 			}
 		}
 		return "{\"baconNumber\":" + baconNumber + "}";
