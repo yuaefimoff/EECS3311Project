@@ -93,10 +93,7 @@ public class APIController implements HttpHandler {
 		String actorId = queryParam.get("actorId");
 
 		if (actorId == null) {
-			// TODO: Don't evaluate with actorID. Check if it's in the database instead by
-			// making a new method in DBManager
-			// If there is no actor in the database that exists with that actorId
-			uti.sendString(request, "NOT FOUND\n", 404);
+			uti.sendString(request, "BAD REQUEST\n", 400);
 			// return; (Commented out because function will return regardless)
 		} else {
 			// Get actor from DB, send 200 request for successful retrieval.
@@ -119,10 +116,7 @@ public class APIController implements HttpHandler {
 		String movieId = queryParam.get("movieId");
 
 		if (movieId == null) {
-			// TODO: Don't evaluate with movieID. Check if it's in the database instead by
-			// making a new method in DBManager
-			// If there is no movie in the database that exists with that movieId
-			uti.sendString(request, "NOT FOUND\n", 404);
+			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
 			// Get movie from DB, send 200 request for successful retrieval.
@@ -152,7 +146,7 @@ public class APIController implements HttpHandler {
 			// statements
 			// If there is no relationship in the database that exists with that movieId and
 			// actorId
-			uti.sendString(request, "NOT FOUND\n", 404);
+			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
 			// Get relationship from DB, send 200 request for successful retrieval.
@@ -176,7 +170,7 @@ public class APIController implements HttpHandler {
 
 		if (actorId == null) {
 			// TODO: Don't evaluate with actorID. Use getActor todo implemented method
-			uti.sendString(request, "NOT FOUND\n", 404);
+			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
 			// Get bacon number from DB, send 200 request for successful computation.
