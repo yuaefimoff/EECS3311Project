@@ -1,21 +1,17 @@
 package ca.yorku.eecs;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLDecoder;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.neo4j.driver.v1.AuthTokens;
-import org.neo4j.driver.v1.Config;
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.GraphDatabase;
+
+import com.sun.net.httpserver.Headers;
+import org.neo4j.driver.v1.*;
 import com.sun.net.httpserver.HttpExchange;
 
-class Utils {        
+class Utils {
     // use for extracting query params
     public static Map<String, String> splitQuery(String query) throws UnsupportedEncodingException {
         Map<String, String> query_pairs = new LinkedHashMap<String, String>();
@@ -51,4 +47,40 @@ class Utils {
 	    
         return buf.toString();
         }
+    
+    //Send HTTP Message to client
+    public void sendString(HttpExchange request, String data, int restCode)
+            throws IOException {
+        request.sendResponseHeaders(restCode, data.length());
+        OutputStream os = request.getResponseBody();
+        os.write(data.getBytes());
+        os.close();
+    }
+
+    public void sendResponse(HttpExchange request, String response, int statusCode) throws IOException {
+        Headers headers = request.getResponseHeaders();
+        headers.set("Content-Type", "application/json");
+        headers.set("Access-Control-Allow-Origin", "*"); // Add this if you want to allow CORS
+
+        request.sendResponseHeaders(statusCode, response.getBytes().length);
+        try (OutputStream outputStream = request.getResponseBody()) {
+            outputStream.write(response.getBytes());
+        }
+    }
+
+    //Searching for a specific key-value pair in JSON
+    public static String findJsonProperty(String jsonString, String target) {
+        String targetString = "\"" + target + "\": ";
+        int startIndex = jsonString.indexOf(targetString);
+        if (startIndex != -1) {
+            int startQuote = jsonString.indexOf("\"", startIndex + targetString.length());
+            int endQuote = jsonString.indexOf("\"", startQuote + 1);
+            if (endQuote != -1) {
+                return jsonString.substring(startQuote + 1, endQuote);
+            }
+        }
+        return null;
+    }
+
+
 }
