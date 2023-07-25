@@ -95,6 +95,13 @@ public class APIController implements HttpHandler {
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 
+		//check if actorId is exists
+		Boolean actorExists = dbm.checkNodeExists("actor", actorId);
+		if (!actorExists) {
+			uti.sendString(request, "NOT FOUND\n", 404);
+			return;
+		}
+
 		if (actorId == null) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			// return; (Commented out because function will return regardless)
@@ -117,6 +124,13 @@ public class APIController implements HttpHandler {
 
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String movieId = queryParam.get("movieId");
+
+		//check if movieId is exists
+		Boolean movieExists = dbm.checkNodeExists("movie", movieId);
+		if (!movieExists) {
+			uti.sendString(request, "NOT FOUND\n", 404);
+			return;
+		}
 
 		if (movieId == null) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
@@ -166,6 +180,13 @@ public class APIController implements HttpHandler {
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 
+		//check if actorId is exists
+		Boolean actorExists = dbm.checkNodeExists("actor", actorId);
+		if (!actorExists) {
+			uti.sendString(request, "NOT FOUND\n", 404);
+			return;
+		}
+
 		if (actorId == null) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
@@ -189,6 +210,13 @@ public class APIController implements HttpHandler {
 
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String actorId = queryParam.get("actorId");
+
+		//check if actorId is exists
+		Boolean actorExists = dbm.checkNodeExists("actor", actorId);
+		if (!actorExists) {
+			uti.sendString(request, "NOT FOUND\n", 404);
+			return;
+		}
 
 		if (actorId == null) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
@@ -262,6 +290,11 @@ public class APIController implements HttpHandler {
 		if (movieId == null || actorId == null) {
 			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+		//Check if movieId and actorId exist
+		if(!dbm.checkNodeExists("actor", actorId) || !dbm.checkNodeExists("movie", movieId)) {
+			uti.sendString(request, "NOT FOUND\n", 404);
 			return;
 		}
 
