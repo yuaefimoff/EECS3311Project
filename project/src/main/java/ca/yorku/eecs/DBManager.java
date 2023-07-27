@@ -68,7 +68,7 @@ public class DBManager implements AutoCloseable {
 		}
 	}
 
-	// Duplicate Checkers
+	// Duplicate Checkers and Existence Checkers:
 	// ---------------------------------------------------------------------
 	public Boolean hasDuplicate(String label, String value) {
 		// Used in createNodeWith2Props
@@ -85,6 +85,31 @@ public class DBManager implements AutoCloseable {
 
 			return false; // No duplicate with the same name found
 		}
+	}
+
+	public Boolean checkNodeExists(String label, String id){
+		try (Session session = driver.session()) {
+
+			String cypherQuery = "MATCH (n:"+label+") WHERE n."+label+"Id = \""+id+"\" RETURN count(n) AS count";
+
+			StatementResult result = session.run(cypherQuery, Values.parameters(label, label+"Id"));
+
+			if (result.hasNext()) {
+				Record record = result.next();
+				int count = record.get("count").asInt();
+				if (count > 0) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				return false;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return null;
 	}
 
 	public Boolean hasDuplicateRelationship(String actorId, String movieId) {
