@@ -3,7 +3,6 @@ package ca.yorku.eecs;
 import org.neo4j.driver.v1.*;
 import org.neo4j.driver.v1.Record;
 
-import java.io.Console;
 import java.util.ArrayList;//Newly added import
 import java.util.HashMap;
 import java.util.HashSet;//Newly added import
