@@ -14,3 +14,5 @@ workbench.xmi
 .project
 .settings/
 .vscode/
+/.idea/
+/project.iml
