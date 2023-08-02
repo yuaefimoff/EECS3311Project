@@ -10,6 +10,7 @@ import org.neo4j.driver.v1.StatementResult;
 
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 public class APIController implements HttpHandler {
@@ -58,7 +59,8 @@ public class APIController implements HttpHandler {
 			computeBaconNumber(request);
 		} else if (selectedMethod.equals("computeBaconPath")) {
 			computeBaconPath(request);
-			
+		} else if (selectedMethod.equals("getMoviesByRating")) {
+			getMoviesByRating(request);
 		}
 
 	}
@@ -142,6 +144,33 @@ public class APIController implements HttpHandler {
 		}
 
 	}
+
+	/*
+	Method returns a list of movies with a rating equal to the rating provided
+	End point requires the rating provided to be a string due to how the findJsonProperty method works
+	TODO potentially change the logic for findJsonProperty to avoid String only returns
+	 */
+	public void getMoviesByRating(HttpExchange request) throws IOException {
+		URI uri = request.getRequestURI();
+		String query = uri.getQuery();
+		String json = uti.getBody(request);
+		String rating = uti.findJsonProperty(json, "rating");
+		int ratingValidityCheck = uti.isNumeric(rating);
+
+		if (ratingValidityCheck <= 0) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		} else {
+
+			Integer a = Integer.parseInt(rating);
+			List result = dbm.findMoviesByRating(a);
+
+			uti.sendResponse(request, result.toString(), 200);
+
+		}
+	}
+		
+	
 
 	private void hasRelationship(HttpExchange request) throws IOException {
 		URI uri = request.getRequestURI();
@@ -255,20 +284,35 @@ public class APIController implements HttpHandler {
 
 	}
 
+	//added in logic for rating
+	//TODO potentially change the logic for findJsonProperty to avoid String only returns
 	private void addMovie(HttpExchange request) throws IOException {
 		// Extract and convert request
 		String json = uti.getBody(request);
 		String name = uti.findJsonProperty(json, "name");
 		String actorId = uti.findJsonProperty(json, "movieId");
+		//getting the rating value from the JSON object
+		String rating = uti.findJsonProperty(json, "rating");
+		int ratingValidityCheck = uti.isNumeric(rating);
+		Boolean addResult;
 
-		if (name == null || actorId == null) {
+		if (name == null || actorId == null|| ratingValidityCheck == 0) {
 			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
 
+		//checks if rating is not provided
+		if(ratingValidityCheck==-1) {
+			 addResult = dbm.createNodeWith2Props("movie", "name", name, "movieId", actorId);
+		}
+		//used if rating is provided and valid
+		//note that the rating will be stored as an int within the node, but the endpoint requires the rating to be given as a string
+		//this is due to how the findJsonProperty method works
+		else {
+			 addResult = dbm.createNodeWith3Props("movie", "name", name, "movieId", actorId, "rating", Integer.parseInt(rating));
+		}
 		// Create movie node, with name and movieId
-		Boolean addResult = dbm.createNodeWith2Props("movie", "name", name, "movieId", actorId);
 
 		if (addResult) {
 			// Successful add
@@ -280,6 +324,7 @@ public class APIController implements HttpHandler {
 		return;
 
 	}
+	
 
 	private void addRelationship(HttpExchange request) throws IOException {
 		// Extract and convert request

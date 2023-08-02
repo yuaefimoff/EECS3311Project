@@ -3,6 +3,7 @@ package ca.yorku.eecs;
 import org.neo4j.driver.v1.*;
 import org.neo4j.driver.v1.Record;
 
+import java.io.Console;
 import java.util.ArrayList;//Newly added import
 import java.util.HashMap;
 import java.util.HashSet;//Newly added import
@@ -50,6 +51,28 @@ public class DBManager implements AutoCloseable {
 		}
 
 	}
+
+	/*
+	method used to create a node with 3 properties, intended for use with the addMovie endpoint when
+	providing a rating alongside a movie name and movie ID. The endpoint will only accept String values for a rating
+	however the database stores the rating as an integer.
+	 */
+	public Boolean createNodeWith3Props(String label, String prop1Label, String prop1Value, String prop2Label,
+			String prop2Value, String prop3Label, Integer prop3Value) {
+		try (Session session = driver.session()) {
+
+			if (hasDuplicate(prop2Label, prop2Value)) {
+				return false;
+			}
+
+			String query = "CREATE (m: "+label +"{"+prop1Label+": '"+prop1Value+"', "+prop2Label+": '"+prop2Value+"', "+prop3Label+": "+prop3Value+"})";
+			session.writeTransaction(tx -> tx.run(query));
+
+			return true;
+		}
+
+	}
+
 
 	public Boolean createRelationship(String actorId, String movieId) {
 		try (Session session = driver.session()) {
@@ -131,6 +154,33 @@ public class DBManager implements AutoCloseable {
 
 	// Search for Node or Relationship
 	// ---------------------------------------------------------------------
+
+	/*
+	Method for generating a list of movie names based on the rating provided.
+	Note that the rating input is an integer as the node property for ratings is stored as an integer, the endpoint
+	that calls this method however will only accept values given as a string for the rating.
+	 */
+	public List<String> findMoviesByRating(Integer rating) {
+		try (Session session = driver.session()) {
+
+			Map<String, Object> params = new HashMap<>();
+			params.put("rating", rating);
+
+			// Create and send Cypher query to DB
+//			String query = "MATCH (n:" + label + ") WHERE n." + label + "Id = $" + label + "Id RETURN n";
+
+			String query ="MATCH (m:movie) WHERE m.rating = $rating  RETURN m";
+			StatementResult result = session.writeTransaction(tx -> tx.run(query, params));
+			List<String> results = new LinkedList<>();
+			while (result.hasNext()) {
+				Record record = result.next();
+				results.add("\"" + record.get("m").asMap().get("name").toString() + "\"");
+			}
+			return results;
+		}
+	}
+
+
 	public List<String> findRelationship(String label, String name) {
 		// Used in convertActorToJson, convertMovieToJson, and convertRelationshipToJSON
 		try (Session session = driver.session()) {
