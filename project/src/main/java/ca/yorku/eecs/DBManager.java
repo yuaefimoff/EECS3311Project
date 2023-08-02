@@ -3,14 +3,7 @@ package ca.yorku.eecs;
 import org.neo4j.driver.v1.*;
 import org.neo4j.driver.v1.Record;
 
-import java.util.ArrayList;//Newly added import
-import java.util.HashMap;
-import java.util.HashSet;//Newly added import
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;//Newly added import
-import java.util.Set;//Newly added import
+import java.util.*;
 
 import static org.neo4j.driver.v1.Config.build;
 
