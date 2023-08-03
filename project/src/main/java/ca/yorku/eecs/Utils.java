@@ -82,5 +82,33 @@ class Utils {
         return null;
     }
 
+    /*
+    determining if the input string a valid rating number between 1 and 5 inclusive
+    3 possible cases
+    1. input string is null. Return -1 to indicate this case
+    2. input string is not a valid integer or is not between 1 and 5 inclusive, in this case return 0.
+    3. input string is a valid integer between 1 and 5 inclusive, in this case, we want the API controller to continue
+       with the request. Return 1 to indicate this case
+     */
+    public static int isNumeric(String str) {
+        //case 1
+        if (str == null) {
+            return -1;
+        }
+        int d;
+        //case 2
+        //try catch block to avoid exception when parsing string to int
+        try {
+            d = Integer.parseInt(str);
+        } catch (NumberFormatException nfe) {
+            return 0;
+        }
+        //checking for range validity
+        if (d < 1 || d > 5) {
+            return 0;
+        }
+        //case 3
+        return 1;
+    }
 
 }
