@@ -8,10 +8,10 @@ import com.sun.net.httpserver.HttpHandler;
 import org.neo4j.driver.v1.Record;
 import org.neo4j.driver.v1.StatementResult;
 
-import java.io.OutputStream;
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+//new import for the new JSON handling
+import org.json.*;
 
 public class APIController implements HttpHandler {
 	private static final String uri = "bolt://localhost:7687";
@@ -65,7 +65,7 @@ public class APIController implements HttpHandler {
 
 	}
 
-	public void handlePost(HttpExchange request) throws IOException {
+	public void handlePost(HttpExchange request) throws IOException, JSONException {
 		// TODO: I suggest changing this to handlePUT as mentioned in our project
 		// instructions
 		// Strip path context, save for last part of path
@@ -169,7 +169,7 @@ public class APIController implements HttpHandler {
 
 		}
 	}
-		
+
 	
 
 	private void hasRelationship(HttpExchange request) throws IOException {
@@ -258,14 +258,34 @@ public class APIController implements HttpHandler {
 	}
 	// PUT Requests
 	// -------------------------------------------------------------------
-	private void addActor(HttpExchange request) throws IOException {
-		// Extract and convert request
-		String json = uti.getBody(request);
-		String name = uti.findJsonProperty(json, "name");
-		String actorId = uti.findJsonProperty(json, "actorId");
+	private void addActor(HttpExchange request) throws IOException, JSONException {
 
-		if (name == null || actorId == null) {
+		//consider changing to JSONArray for easier validty checking of optional params like rating??
+		//this will POTENTIALLY avoid a sever error when parsing for params that do not exist in the JSON object
+		JSONObject sample;
+		String json = uti.getBody(request);
+
+		try{
+			sample=new JSONObject(json);
+		}
+		catch (Exception e){
+			uti.sendString(request, "BAD REQUEST 1\n", 400);
+			return;
+		}
+
+		String name = sample.optString("name");
+		String actorId = sample.optString("actorId");
+
+		if (sample.isNull("name") || sample.isNull("actorId")) {
+
 			// If the request body is improperly formatted or missing required information
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+
+		//check if name or actorId is empty, this was not being checked before and must be done
+		//after the null checks to avoid a null pointer exception
+		else if(name.equals("")||actorId.equals("")) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
@@ -285,32 +305,58 @@ public class APIController implements HttpHandler {
 	}
 
 	//added in logic for rating
-	//TODO potentially change the logic for findJsonProperty to avoid String only returns
+	//fixed the lack of empty string and null property checking, the majority of this logic can be moved over to Utils
 	private void addMovie(HttpExchange request) throws IOException {
 		// Extract and convert request
-		String json = uti.getBody(request);
-		String name = uti.findJsonProperty(json, "name");
-		String actorId = uti.findJsonProperty(json, "movieId");
-		//getting the rating value from the JSON object
-		String rating = uti.findJsonProperty(json, "rating");
-		int ratingValidityCheck = uti.isNumeric(rating);
-		Boolean addResult;
 
-		if (name == null || actorId == null|| ratingValidityCheck == 0) {
+		Boolean providedRating=false;
+		Boolean addResult;
+		String json = uti.getBody(request);
+		int rating=-1;
+		JSONObject sample;
+
+//try catch for the JSONObject creation
+		try{
+			sample=new JSONObject(json);
+		}
+		catch (Exception e){
+			uti.sendString(request, "BAD REQUEST 1\n", 400);
+			return;
+		}
+
+//must use the optString/optInt method to avoid a server error when parsing for params that do not exist in the JSON object
+		String name = sample.optString("name");
+		String movieId = sample.optString("movieId");
+
+		if(sample.has("rating")){
+			//checking for null
+			if(!sample.isNull("rating")){
+				rating = sample.optInt("rating");
+				providedRating=true;
+			}
+		}
+
+		//check if name or movie id are null, also check if rating IS provided and IS NOT valid
+		if (sample.isNull("name") || sample.isNull("movieId")|| (rating<1||rating>5)&&providedRating) {
+
 			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
+		//empty string handling
+		else if(name.equals("")||movieId.equals("")) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
 
-		//checks if rating is not provided
-		if(ratingValidityCheck==-1) {
-			 addResult = dbm.createNodeWith2Props("movie", "name", name, "movieId", actorId);
+		//checks if rating is not provided, calls 2prop node creation
+		if(!providedRating) {
+			 addResult = dbm.createNodeWith2Props("movie", "name", name, "movieId", movieId);
 		}
 		//used if rating is provided and valid
-		//note that the rating will be stored as an int within the node, but the endpoint requires the rating to be given as a string
-		//this is due to how the findJsonProperty method works
+		//note that the rating will be stored as an int within the nod
 		else {
-			 addResult = dbm.createNodeWith3Props("movie", "name", name, "movieId", actorId, "rating", Integer.parseInt(rating));
+			 addResult = dbm.createNodeWith3Props("movie", "name", name, "movieId", movieId, "rating", rating);
 		}
 		// Create movie node, with name and movieId
 
