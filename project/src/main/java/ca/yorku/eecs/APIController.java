@@ -8,9 +8,10 @@ import com.sun.net.httpserver.HttpHandler;
 import org.neo4j.driver.v1.Record;
 import org.neo4j.driver.v1.StatementResult;
 
-import java.io.OutputStream;
 import java.net.URI;
-import java.util.Map;
+import java.util.*;
+//new import for the new JSON handling
+import org.json.*;
 
 public class APIController implements HttpHandler {
 	private static final String uri = "bolt://localhost:7687";
@@ -19,10 +20,9 @@ public class APIController implements HttpHandler {
 	private static Utils uti = new Utils();
 	private DBManager dbm = new DBManager(uri, user, password);
 
-	public APIController() {
-	}
+	public APIController() {}
 
-	// Handling requests
+	// HANDLE requests
 	// -------------------------------------------------------------------
 	@Override
 	public void handle(HttpExchange request) throws IOException {
@@ -56,11 +56,15 @@ public class APIController implements HttpHandler {
 			hasRelationship(request);
 		} else if (selectedMethod.equals("computeBaconNumber")) {
 			computeBaconNumber(request);
+		} else if (selectedMethod.equals("computeBaconPath")) {
+			computeBaconPath(request);
+		} else if (selectedMethod.equals("getMoviesByRating")) {
+			getMoviesByRating(request);
 		}
 
 	}
 
-	public void handlePost(HttpExchange request) throws IOException {
+	public void handlePost(HttpExchange request) throws IOException, JSONException {
 		// TODO: I suggest changing this to handlePUT as mentioned in our project
 		// instructions
 		// Strip path context, save for last part of path
@@ -78,13 +82,13 @@ public class APIController implements HttpHandler {
 	}
 
 	// GET Requests
+	// All GET requests must return either a 200, 400, or 404 status code.
 	// -------------------------------------------------------------------
 	private void getActor(HttpExchange request) throws IOException {
 		URI uri = request.getRequestURI();
 		String query = uri.getQuery();
 
 		if (query == null) {
-			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
@@ -92,14 +96,13 @@ public class APIController implements HttpHandler {
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 
-		if (actorId == null) {
-			// TODO: Don't evaluate with actorID. Check if it's in the database instead by
-			// making a new method in DBManager
-			// If there is no actor in the database that exists with that actorId
+		//Boolean actorExists = dbm.checkNodeExists("actor", actorId);
+		if (!dbm.checkNodeExists("actor", actorId)) {
 			uti.sendString(request, "NOT FOUND\n", 404);
-			// return; (Commented out because function will return regardless)
-		} else {
-			// Get actor from DB, send 200 request for successful retrieval.
+			return;
+		}
+		if (actorId == null) uti.sendString(request, "BAD REQUEST\n", 400);
+		else {
 			String result = dbm.convertActorToJson(actorId.trim());
 			uti.sendResponse(request, result, 200);
 		}
@@ -110,7 +113,6 @@ public class APIController implements HttpHandler {
 		String query = uri.getQuery();
 
 		if (query == null) {
-			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
@@ -118,18 +120,41 @@ public class APIController implements HttpHandler {
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String movieId = queryParam.get("movieId");
 
-		if (movieId == null) {
-			// TODO: Don't evaluate with movieID. Check if it's in the database instead by
-			// making a new method in DBManager
-			// If there is no movie in the database that exists with that movieId
+		//Boolean movieExists = dbm.checkNodeExists("movie", movieId);
+		if (!dbm.checkNodeExists("movie", movieId)) {
 			uti.sendString(request, "NOT FOUND\n", 404);
 			return;
-		} else {
-			// Get movie from DB, send 200 request for successful retrieval.
+		}
+		if (movieId == null) uti.sendString(request, "BAD REQUEST\n", 400);
+		else {
 			String result = dbm.convertMovieToJson(movieId.trim());
 			uti.sendResponse(request, result, 200);
 		}
 
+	}
+
+	/*
+	Method returns a list of movies with a rating equal to the rating provided
+	End point requires the rating provided to be a string due to how the findJsonProperty method works
+	TODO potentially change the logic for findJsonProperty to avoid String only returns
+	 */
+	public void getMoviesByRating(HttpExchange request) throws IOException {
+		URI uri = request.getRequestURI();
+		String query = uri.getQuery();
+		
+		String json = uti.getBody(request);
+		String rating = uti.findJsonProperty(json, "rating");
+		int ratingValidityCheck = uti.isNumeric(rating);
+
+		if (ratingValidityCheck <= 0) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		} else {
+			Integer a = Integer.parseInt(rating);
+			List result = dbm.findMoviesByRating(a);
+
+			uti.sendResponse(request, result.toString(), 200);
+		}
 	}
 
 	private void hasRelationship(HttpExchange request) throws IOException {
@@ -137,7 +162,6 @@ public class APIController implements HttpHandler {
 		String query = uri.getQuery();
 
 		if (query == null) {
-			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
@@ -145,17 +169,13 @@ public class APIController implements HttpHandler {
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 		String movieId = queryParam.get("movieId");
-
-		if (actorId == null || movieId == null) {
-			// TODO: Don't evaluate with movieID, actorId. Check if the either is in the
-			// database instead by using previous methods implemented in other todo
-			// statements
-			// If there is no relationship in the database that exists with that movieId and
-			// actorId
+		
+		if (!dbm.checkNodeExists("movie", movieId) || !dbm.checkNodeExists("actor", actorId)) {
 			uti.sendString(request, "NOT FOUND\n", 404);
 			return;
-		} else {
-			// Get relationship from DB, send 200 request for successful retrieval.
+		}
+		if (actorId == null || movieId == null) uti.sendString(request, "BAD REQUEST\n", 400);
+		else {
 			String result = dbm.convertRelationshipToJson(actorId.trim(), movieId.trim());
 			uti.sendResponse(request, result, 200);
 		}
@@ -174,9 +194,15 @@ public class APIController implements HttpHandler {
 		Map<String, String> queryParam = uti.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 
-		if (actorId == null) {
-			// TODO: Don't evaluate with actorID. Use getActor todo implemented method
+		//check if actorId is exists
+		Boolean actorExists = dbm.checkNodeExists("actor", actorId);
+		if (!actorExists) {
 			uti.sendString(request, "NOT FOUND\n", 404);
+			return;
+		}
+
+		if (actorId == null) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
 			// Get bacon number from DB, send 200 request for successful computation.
@@ -186,16 +212,67 @@ public class APIController implements HttpHandler {
 
 	}
 
-	// PUT Requests
-	// -------------------------------------------------------------------
-	private void addActor(HttpExchange request) throws IOException {
-		// Extract and convert request
-		String json = uti.getBody(request);
-		String name = uti.findJsonProperty(json, "name");
-		String actorId = uti.findJsonProperty(json, "actorId");
+	private void computeBaconPath(HttpExchange request) throws IOException {
+		URI uri = request.getRequestURI();
+		String query = uri.getQuery();
 
-		if (name == null || actorId == null) {
+		if (query == null) {
 			// If the request body is improperly formatted or missing required information
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+
+		Map<String, String> queryParam = uti.splitQuery(query);
+		String actorId = queryParam.get("actorId");
+
+		//check if actorId is exists
+		Boolean actorExists = dbm.checkNodeExists("actor", actorId);
+		if (!actorExists) {
+			uti.sendString(request, "NOT FOUND\n", 404);
+			return;
+		}
+
+		if (actorId == null) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		} else {
+			// Get bacon number from DB, send 200 request for successful computation.
+			String result = dbm.convertBaconPathToJson(actorId);
+			uti.sendResponse(request, result, 200);
+		}
+	}
+	
+	// PUT Requests
+	// All PUT requests must return either a 200 or 400 status code
+	// -------------------------------------------------------------------
+	private void addActor(HttpExchange request) throws IOException, JSONException {
+
+		//consider changing to JSONArray for easier validty checking of optional params like rating??
+		//this will POTENTIALLY avoid a sever error when parsing for params that do not exist in the JSON object
+		JSONObject sample;
+		String json = uti.getBody(request);
+
+		try{
+			sample=new JSONObject(json);
+		}
+		catch (Exception e){
+			uti.sendString(request, "BAD REQUEST 1\n", 400);
+			return;
+		}
+
+		String name = sample.optString("name");
+		String actorId = sample.optString("actorId");
+		
+		if (sample.isNull("name") || sample.isNull("actorId")) {
+
+			// If the request body is improperly formatted or missing required information
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+
+		//check if name or actorId is empty, this was not being checked before and must be done
+		//after the null checks to avoid a null pointer exception
+		else if(name.equals("")||actorId.equals("")) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
@@ -214,20 +291,59 @@ public class APIController implements HttpHandler {
 
 	}
 
+	//added in logic for rating
+	//fixed the lack of empty string and null property checking, the majority of this logic can be moved over to Utils
 	private void addMovie(HttpExchange request) throws IOException {
 		// Extract and convert request
-		String json = uti.getBody(request);
-		String name = uti.findJsonProperty(json, "name");
-		String actorId = uti.findJsonProperty(json, "movieId");
 
-		if (name == null || actorId == null) {
-			// If the request body is improperly formatted or missing required information
+		Boolean providedRating=false;
+		Boolean addResult;
+		String json = uti.getBody(request);
+		int rating=-1;
+		JSONObject sample;
+
+		//try catch for the JSONObject creation
+		try{
+			sample=new JSONObject(json);
+		}
+		catch (Exception e){
+			uti.sendString(request, "BAD REQUEST 1\n", 400);
+			return;
+		}
+
+		//must use the optString/optInt method to avoid a server error when parsing for params that do not exist in the JSON object
+		String name = sample.optString("name");
+		String movieId = sample.optString("movieId");
+
+		if(sample.has("rating")){
+			//checking for null
+			if(!sample.isNull("rating")){
+				rating = sample.optInt("rating");
+				providedRating=true;
+			}
+		}
+
+		//check if name or movie id are null, also check if rating IS provided and IS NOT valid
+		if (sample.isNull("name") || sample.isNull("movieId")|| (rating<1||rating>5) && providedRating) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+		//empty string handling
+		else if(name.equals("")||movieId.equals("")) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
 
+		//checks if rating is not provided, calls 2prop node creation
+		if(!providedRating) {
+			 addResult = dbm.createNodeWith2Props("movie", "name", name, "movieId", movieId);
+		}
+		//used if rating is provided and valid
+		//note that the rating will be stored as an int within the nod
+		else {
+			 addResult = dbm.createNodeWith3Props("movie", "name", name, "movieId", movieId, "rating", rating);
+		}
 		// Create movie node, with name and movieId
-		Boolean addResult = dbm.createNodeWith2Props("movie", "name", name, "movieId", actorId);
 
 		if (addResult) {
 			// Successful add
@@ -239,31 +355,55 @@ public class APIController implements HttpHandler {
 		return;
 
 	}
-
+	
 	private void addRelationship(HttpExchange request) throws IOException {
 		// Extract and convert request
+		JSONObject sample;
 		String json = uti.getBody(request);
-		String actorId = uti.findJsonProperty(json, "actorId");
-		String movieId = uti.findJsonProperty(json, "movieId");
 
+		try{
+			sample=new JSONObject(json);
+		}
+		catch (Exception e){
+			uti.sendString(request, "BAD REQUEST 1\n", 400);
+			return;
+		}
+		
+		String actorId = sample.optString("actorId");
+		String movieId = sample.optString("movieId");
+		
+		System.out.println("RELATIONSHIP\n-----\n" + json + "\n" + actorId + "\n" + movieId);
+		
+		
+		/**
 		if (movieId == null || actorId == null) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}**/
+		
+		if (sample.isNull("actorId") || sample.isNull("movieId")) {
 			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+
+		//check if name or actorId is empty, this was not being checked before and must be done
+		//after the null checks to avoid a null pointer exception
+		else if(actorId.equals("")||movieId.equals("")) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+		
+		if(!(dbm.checkNodeExists("actor", actorId) && dbm.checkNodeExists("movie", movieId))) {
+			uti.sendString(request, "NOT FOUND\n", 404);
 			return;
 		}
 
 		// Create relationship arrow, with actorId and movieId
 		Boolean addResult = dbm.createRelationship(actorId, movieId);
 
-		if (addResult) {
-			// Successful add
-			uti.sendString(request, "OK\n", 200);
-		} else {
-			// Duplicate relationship found
-			uti.sendString(request, "BAD REQUEST\n", 400);
-		}
-		return;
-
+		if (addResult) uti.sendString(request, "OK\n", 200);
+		else uti.sendString(request, "BAD REQUEST\n", 400);
 	}
 
 }
