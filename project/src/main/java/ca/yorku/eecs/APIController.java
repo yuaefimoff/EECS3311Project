@@ -372,9 +372,6 @@ public class APIController implements HttpHandler {
 		String actorId = sample.optString("actorId");
 		String movieId = sample.optString("movieId");
 		
-		System.out.println("RELATIONSHIP\n-----\n" + json + "\n" + actorId + "\n" + movieId);
-		
-		
 		/**
 		if (movieId == null || actorId == null) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
