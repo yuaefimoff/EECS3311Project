@@ -31,7 +31,6 @@ public class APIController implements HttpHandler {
 			if (request.getRequestMethod().equals("GET")) {
 				handleGet(request);
 			} else if (request.getRequestMethod().equals("POST")) {
-				// TODO: Change to PUT
 				handlePost(request);
 			} else {
 				uti.sendString(request, "Unimplemented method\n", 501);
@@ -65,9 +64,6 @@ public class APIController implements HttpHandler {
 	}
 
 	public void handlePost(HttpExchange request) throws IOException, JSONException {
-		// TODO: I suggest changing this to handlePUT as mentioned in our project
-		// instructions
-		// Strip path context, save for last part of path
 		URI uri = request.getRequestURI();
 		String selectedMethod = uri.getPath().replace("/api/v1/", "");
 
@@ -93,7 +89,7 @@ public class APIController implements HttpHandler {
 			return;
 		}
 
-		Map<String, String> queryParam = uti.splitQuery(query);
+		Map<String, String> queryParam = Utils.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 
 		//Boolean actorExists = dbm.checkNodeExists("actor", actorId);
@@ -117,7 +113,7 @@ public class APIController implements HttpHandler {
 			return;
 		}
 
-		Map<String, String> queryParam = uti.splitQuery(query);
+		Map<String, String> queryParam = Utils.splitQuery(query);
 		String movieId = queryParam.get("movieId");
 
 		//Boolean movieExists = dbm.checkNodeExists("movie", movieId);
@@ -142,17 +138,21 @@ public class APIController implements HttpHandler {
 		URI uri = request.getRequestURI();
 		String query = uri.getQuery();
 		
-		String json = uti.getBody(request);
-		String rating = uti.findJsonProperty(json, "rating");
-		int ratingValidityCheck = uti.isNumeric(rating);
+		if (query == null) {
+			uti.sendString(request, "BAD REQUEST\n", 400);
+			return;
+		}
+		
+		Map<String, String> queryParam = Utils.splitQuery(query);
+		String rating = queryParam.get("rating");
+		int ratingValidityCheck = Utils.isNumeric(rating);
 
 		if (ratingValidityCheck <= 0) {
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
 			Integer a = Integer.parseInt(rating);
-			List result = dbm.findMoviesByRating(a);
-
+			String result = dbm.findMoviesByRating(a);
 			uti.sendResponse(request, result.toString(), 200);
 		}
 	}
@@ -166,7 +166,7 @@ public class APIController implements HttpHandler {
 			return;
 		}
 
-		Map<String, String> queryParam = uti.splitQuery(query);
+		Map<String, String> queryParam = Utils.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 		String movieId = queryParam.get("movieId");
 		
@@ -182,21 +182,19 @@ public class APIController implements HttpHandler {
 	}
 
 	private void computeBaconNumber(HttpExchange request) throws IOException {
+		
 		URI uri = request.getRequestURI();
 		String query = uri.getQuery();
-
+		
 		if (query == null) {
-			// If the request body is improperly formatted or missing required information
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		}
 
-		Map<String, String> queryParam = uti.splitQuery(query);
+		Map<String, String> queryParam = Utils.splitQuery(query);
 		String actorId = queryParam.get("actorId");
-
-		//check if actorId is exists
-		Boolean actorExists = dbm.checkNodeExists("actor", actorId);
-		if (!actorExists) {
+		
+		if (!dbm.checkNodeExists("actor", actorId) || !dbm.checkNodeExists("actor", "nm0000102")) {
 			uti.sendString(request, "NOT FOUND\n", 404);
 			return;
 		}
@@ -205,7 +203,6 @@ public class APIController implements HttpHandler {
 			uti.sendString(request, "BAD REQUEST\n", 400);
 			return;
 		} else {
-			// Get bacon number from DB, send 200 request for successful computation.
 			String result = dbm.convertBaconNumberToJson(actorId);
 			uti.sendResponse(request, result, 200);
 		}
@@ -222,7 +219,7 @@ public class APIController implements HttpHandler {
 			return;
 		}
 
-		Map<String, String> queryParam = uti.splitQuery(query);
+		Map<String, String> queryParam = Utils.splitQuery(query);
 		String actorId = queryParam.get("actorId");
 
 		//check if actorId is exists
@@ -371,12 +368,6 @@ public class APIController implements HttpHandler {
 		
 		String actorId = sample.optString("actorId");
 		String movieId = sample.optString("movieId");
-		
-		/**
-		if (movieId == null || actorId == null) {
-			uti.sendString(request, "BAD REQUEST\n", 400);
-			return;
-		}**/
 		
 		if (sample.isNull("actorId") || sample.isNull("movieId")) {
 			// If the request body is improperly formatted or missing required information
