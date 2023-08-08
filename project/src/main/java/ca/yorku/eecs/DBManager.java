@@ -69,9 +69,9 @@ public class DBManager implements AutoCloseable {
 	Note that the rating input is an integer as the node property for ratings is stored as an integer, the endpoint
 	that calls this method however will only accept values given as a string for the rating.
 	 */
-	public List<String> findMoviesByRating(Integer rating) {
+	public String findMoviesByRating(Integer rating) {
 		//String query = "MATCH (n:" + label + ") WHERE n." + label + "Id = $" + label + "Id RETURN n";
-		String query ="MATCH (m:movie) WHERE m.rating = $rating  RETURN m";
+		String query ="MATCH (m:movie) WHERE m.rating = " + rating + "  RETURN m";
 		
 		try (Session session = driver.session()) {
 			Map<String, Object> params = new HashMap<>();
@@ -84,7 +84,7 @@ public class DBManager implements AutoCloseable {
 				Record record = result.next();
 				results.add("\"" + record.get("m").asMap().get("name").toString() + "\"");
 			}
-			return results;
+			return "{\"movieList\": " + results.toString() + "}";
 		}
 	}
 
@@ -182,20 +182,16 @@ public class DBManager implements AutoCloseable {
 	
 	// JSON Formatting
 	// ---------------------------------------------------------------------
-	public String convertActorToJson(String actorId) {
-		// Used in APIController getActor method
+	public String /* APIController getActor */ convertActorToJson(String actorId) {
 		StatementResult actor = findByLabelAndId("actor", actorId);
 		String actorIdString = null;
 		String nameString = null;
 
 		while (actor.hasNext()) {
-			// Retrieve actor record, extract name and ID
 			Record record = actor.next();
 			nameString = record.get("n").asMap().get("name").toString();
 			actorIdString = record.get("n").asMap().get("actorId").toString();
 		}
-
-		// Return list of movies in String format
 		String movies = findRelationship("movie", nameString).toString();
 
 		return "{\"actorId\":\"" + actorIdString + "\",\"name\":\"" + nameString + "\",\"movies\":" + movies + "}";
@@ -233,12 +229,10 @@ public class DBManager implements AutoCloseable {
 		// Get list of movies in String format
 		String movies = findRelationship("movie", nameString).toString();
 		movies = movies.substring(1, movies.length() - 1); // Remove the square brackets
-		// System.out.println(movies);
 
 		// Iterate through each movieId and find if actor has a relationship with movie
 		Boolean hasRelationship = false;
 		for (String movie : movies.split(", ")) {
-			System.out.println(movie);
 			if (movie.equals("\"" + movieId + "\"")) {
 				hasRelationship = true;
 				break;
@@ -251,57 +245,71 @@ public class DBManager implements AutoCloseable {
 	}
 
 	public String convertBaconNumberToJson(String actorId) {
-		StatementResult actor = findByLabelAndId("actor", actorId);
 		String actorIdString = null;
-		int baconNumber = 0;
-
+		String baconId = "nm0000102";
+		String baconNumber = "0";
+		StatementResult actor = findByLabelAndId("actor", actorId);
+		
 		while (actor.hasNext()) {
-			// Retrieve actor record, extract ID
 			Record record = actor.next();
 			actorIdString = record.get("n").asMap().get("actorId").toString();
 		}
+		
 
-		if (!actorIdString.equals("nm0000102")) {
-			// If actor is not Kevin Bacon, proceed to find shortest path to Kevin Bacon
+		if (!actorIdString.equals(baconId)) {
 			try (Session session = driver.session()) {
-				// Send Cypher query, get path length, and store it
-				// Note, we divide path length by 2 to remove the movies from the path)
-				String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '"
-						+ actorIdString + "'}))\n" + "RETURN LENGTH(p)/2 AS bacon_number";
-
+				String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '" + actorIdString + "'}))\n" + "RETURN LENGTH(p)/2 AS bacon_number";
 				StatementResult result = session.run(query);
-				baconNumber = result.single().get("bacon_number").asInt();
+				
+				if(result.hasNext()) {
+					Record recordResult = result.next();
+					baconNumber = recordResult.values().get(0).toString();
+					
+					
+					//TODO: This should be a 404 request, not a str. 
+					//What I would do is make an if statement checking if the returned string is 404, and send a 404 request. we got not time for other shit
+					if(baconNumber.equals("NULL")) {
+						baconNumber = "404";
+					}
+				}
 			}
 		}
-
 		return "{\"baconNumber\":" + baconNumber + "}";
 	}
 
 	public String convertBaconPathToJson(String actorId) {
+		String baconId = "nm0000102";
+		String baconPath = "";
+		
 		StatementResult actor = findByLabelAndId("actor", actorId);
 		String actorIdString = null;
-		List<Object> baconPath = new ArrayList<>();
-
 		while (actor.hasNext()) {
-			// Retrieve actor record, extract ID
 			Record record = actor.next();
 			actorIdString = record.get("n").asMap().get("actorId").toString();
 		}
-
-		// TODO: Check if we need to consider the case where Kevin Bacon is the ID, and add an if statement to reflect it
-		try (Session session = driver.session()) {
-			// Send Cypher query and get the path
-			String query = "MATCH p=shortestPath((bacon:actor {actorId: 'nm0000102'})-[:ACTED_IN*]-(actor:actor {actorId: '"
-					+ actorIdString + "'}))\n" + "RETURN p";
-
-			StatementResult result = session.run(query);
-			if (result.hasNext()) {
-				Record record = result.single();
-				baconPath = record.get("p").asList();
+		
+		if (!actorIdString.equals(baconId)) {
+			try (Session session = driver.session()) {
+				String query = "MATCH (a:actor {actorId: '" + actorIdString + "'}), (b:actor {actorId: 'nm0000102'}), p = shortestPath((a)-[:ACTED_IN*]-(b))\n"
+						+ "WITH p as p, nodes(p) as n\n"
+						+ "RETURN [value in n | CASE WHEN 'actorId' IN keys(value) THEN value.actorId ELSE value.movieId END] as baconPath";
+				StatementResult result = session.run(query);
+				
+				if (result.hasNext()) {
+                    Record record = result.next();
+                    baconPath = record.values().get(0).toString();
+                    
+                  //TODO: This should be a 404 request, not a str, like the baconNumber function
+                    if (baconPath.equals("NULL")) {
+                    	baconPath = "404";
+                    }
+                }
+                return "{\"baconPath\": " + baconPath + "}";
 			}
+			
+		}else {
+			return "{\"baconPath\":[\"nm0000102\"]}";
 		}
-
-		return "{\"baconPath\":" + baconPath.toString() + "}";
 	}
 
 }
